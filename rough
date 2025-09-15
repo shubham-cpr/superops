@@ -1,0 +1,77 @@
+1. Q: What is the difference between EC2, ECS, and Lambda? When would you use each?
+   A: EC2 provides IaaS virtual machines. ECS is a container orchestration service. Lambda is serverless and event-driven. Use EC2 for full control, ECS for containerized apps, Lambda for short-running tasks/APIs.
+
+2. Q: How does an Application Load Balancer differ from a Network Load Balancer?
+   A: ALB works at Layer 7 (HTTP/HTTPS), supports URL routing and WebSockets. NLB works at Layer 4 (TCP/UDP), designed for high-performance and low-latency workloads.
+
+3. Q: What are the different types of EBS volumes and their use cases?
+   A: gp3 (general SSD), io2 (high IOPS SSD), st1 (throughput HDD), sc1 (cold HDD). Use gp3 for general workloads, io2 for DBs, st1/sc1 for large sequential access.
+
+4. Q: Explain how Security Groups and NACLs work in AWS.
+   A: Security Groups are stateful, apply at instance level. NACLs are stateless, apply at subnet level. Security Groups auto-allow return traffic; NACLs require explicit rules.
+
+5. Q: How do you securely expose an S3 bucket for public access to specific files only?
+   A: Use bucket policies to allow `s3:GetObject` on specific object paths (e.g., `public/*`) and deny others. Avoid making the whole bucket public.
+
+6. Q: Describe the traffic flow from a user to an EC2 instance behind a public ALB.
+   A: Request → Internet Gateway → ALB (public subnet) → Target Group → EC2 (private subnet) → NAT if needed for response.
+
+7. Q: How do you reduce AWS costs in EC2, S3, and RDS?
+   A: EC2: Use Spot/Reserved Instances, right-size VMs. S3: Use lifecycle rules, intelligent tiering. RDS: Use Aurora Serverless, auto-scaling, pause when idle.
+
+8. Q: 
+
+   A: Use CloudWatch metrics (Duration, Errors), avoid cold starts, adjust memory, and use concurrency controls.
+
+9. Q: What is the principle of least privilege and how is it implemented in AWS?
+   A: It means granting only the minimum permissions needed. Use IAM roles/policies with narrowly scoped actions/resources.
+
+10. Q: How would you provide temporary access to an AWS resource?
+    A: Use IAM roles + STS (e.g., `AssumeRole`) or generate temporary credentials using the AWS CLI with duration control.
+
+11. Q: How do you set up monitoring in AWS for EC2 and containers?
+    A: Use CloudWatch agent for EC2, and Container Insights or Prometheus + CloudWatch for container metrics/logs.
+
+12. Q: Describe a use case where you used CloudFormation or Terraform.
+    A: Used CloudFormation to provision VPC + EC2 + IAM roles in a consistent, repeatable way. Used Terraform for IaC with GitOps and multi-environment deployments.
+
+--------------------------------------------------------------------------------------------
+
+1. Q: What happens when you run `kubectl apply` on a deployment YAML?
+   A: It creates/updates the resource by comparing the desired state in the YAML with the live state and applying the diff.
+
+2. Q: Explain the difference between a Deployment, StatefulSet, and DaemonSet.
+   A: Deployment: stateless apps. StatefulSet: stable network IDs, used for stateful apps. DaemonSet: runs one pod per node, e.g., for logging/monitoring.
+
+3. Q: How does Kubernetes handle service discovery internally?
+   A: Uses CoreDNS to map service names (e.g., `svc.namespace.svc.cluster.local`) to cluster IPs.
+
+4. Q: What are the differences between ClusterIP, NodePort, and LoadBalancer services?
+   A: ClusterIP: internal-only. NodePort: exposes service on each node’s IP + port. LoadBalancer: provisions external LB (cloud). Use LoadBalancer for public apps.
+
+5. Q: What are readiness and liveness probes in Kubernetes?
+   A: Readiness: checks if pod can receive traffic. Liveness: checks if pod is healthy. Prevents broken or unready pods from being used.
+
+6. Q: How do you scale pods and nodes in Kubernetes?
+   A: Use HPA/VPA for pods, Cluster Autoscaler or Karpenter for nodes. Configure based on CPU/memory/custom metrics.
+
+7. Q: What are taints and tolerations in Kubernetes?
+   A: Taints prevent pods from scheduling on certain nodes. Tolerations allow selected pods to bypass taints. Used for isolating workloads.
+
+8. Q: How do you restrict user access to specific Kubernetes namespaces?
+   A: Create Role and RoleBinding scoped to the namespace. Use RBAC to control verbs and resources per user/group.
+
+9. Q: What are best practices for managing secrets in Kubernetes?
+   A: Use `Secret` resources with base64-encoded data. For high security, use external secret managers (e.g., AWS Secrets Manager, HashiCorp Vault).
+
+10. Q: What is Helm and how have you used it?
+    A: Helm is a package manager for Kubernetes. Used to template and deploy apps like ingress-nginx, cert-manager with versioning and overrides.
+
+11. Q: How do you implement CI/CD pipelines for Kubernetes?
+    A: Use Jenkins/GitHub Actions to build images → push to registry → deploy using `kubectl` or Helm → rollback on failure. Add pre-deploy validation.
+
+12. Q: How would you troubleshoot a pod in `CrashLoopBackOff`?
+    A: Check logs (`kubectl logs`), check events (`kubectl describe pod`). Common issues: bad config, bad image, failing probes.
+
+13. Q: How do you perform a Kubernetes upgrade in production?
+    A: Backup etcd → upgrade control plane (`kubeadm upgrade`) → upgrade kubelet/kubectl on nodes → drain and upgrade nodes one by one → validate apps and logs.

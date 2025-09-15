@@ -1,0 +1,10 @@
+AWS DataZone is a service accessible outside the standard AWS Management Console, through a distinct link known as the data portal.
+For example, the management of access to Athena databases continues to be governed by LakeFormation, requiring users to configure access through this specific service.
+Data warehouse blueprint contains the definition for launching and configuring a set of services (Amazon Redshift) to publish and use Amazon Redshift assets in the Amazon DataZone catalog.
+After creating a project, we can set up an environment. This is where we use blueprints. We can configure the environment with environment profiles, which are pre-set combinations of resources and blueprints for easy setup.
+navigate to the DATA tab and select DataSources from the menu. Here, you’ll see a list of your sources from which the system can generate metadata
+Once data is reviewed, it can be published, making it searchable to domain users.
+Note: only the owner or a contributor of the project can publish an asset to the catalog.
+there are producers (data owners who add data to the catalog) and consumers (users seeking data for analysis or queries). With DataZone, users can search for and “google” data within their domain.
+When a user finds the needed data, they can subscribe to it by clicking the subscribe button in the data portal. This sends a request to the data owner, who may approve or deny it.
+The environment must have access to the tables being requested. If it doesn’t, the user won’t be able to see the data 
