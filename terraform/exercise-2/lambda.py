@@ -1,72 +1,70 @@
 import boto3
+import json
 
-client = boto3.client('resource-explorer-2')
+tagging_client = boto3.client("resourcegroupstaggingapi")
 
-#AWS resource explorer view ARN ( Default use when not provided)
-view_arn = "arn:aws:resource-explorer-2:us-west-2:357171621133:view/all-resources/2a87ad65-7bf3-4be5-984f-864c935e6a3b"
+def lambda_handler(event, context):
+    print("Incoming event:", json.dumps(event, indent=2))
 
-# Query string to filter resources without a specific tag key
-query_string = '-tag.key:Lab'  
+    detail = event.get("detail", {})
+    user_arn = detail.get("userIdentity", {}).get("arn", "unknown")
+    event_name = detail.get("eventName")
+    region = event.get("region")
+    account = event.get("account")
+    service = detail.get("eventSource", "").split(".")[0]  # <-- FIX HERE
 
-# Initialize list to store resource ARNs
-list_of_resource_ids = []
+    resource_arns = []
 
-# Paginate through results to retrieve all resources
-paginator = client.get_paginator('search')
-response_iterator = paginator.paginate(
-    QueryString=query_string,
-    ViewArn=view_arn
-)
+    # --- EC2: RunInstances ---
+    if event_name == "RunInstances":
+        instances = detail.get("responseElements", {}).get("instancesSet", {}).get("items", [])
+        for inst in instances:
+            instance_id = inst["instanceId"]
+            resource_arns.append(f"arn:aws:ec2:{region}:{account}:instance/{instance_id}")
 
-for page in response_iterator:
-    resources = page['Resources']
-    list_of_resource_ids.extend([item['Arn'] for item in resources])
+    # --- S3: CreateBucket ---
+    elif service == "s3" and "bucketName" in detail.get("requestParameters", {}):
+        bucket_name = detail["requestParameters"]["bucketName"]
+        s3 = boto3.client("s3")
+        s3.put_bucket_tagging(
+            Bucket=bucket_name,
+            Tagging={
+                "TagSet": [
+                    {"Key": "CreatedBy", "Value": user_arn}
+                ]
+            }
+        )
+        print(f"Tagged S3 bucket {bucket_name} with CreatedBy={user_arn}")
 
-# Remove duplicates if needed (though unlikely for ARNs)
-unique_list = list(set(list_of_resource_ids))
-print(len(unique_list))
-Not_Tagged_List =  []
+    # --- RDS: CreateDBInstance ---
+    elif event_name == "CreateDBInstance":
+        db_id = detail.get("responseElements", {}).get("dBInstanceIdentifier")
+        if db_id:
+            resource_arns.append(f"arn:aws:rds:{region}:{account}:db:{db_id}")
 
-# Function to tag resources
-def tag_resources_by_region(resource_groups):
-    for region, resource_list in resource_groups.items():
-        if region:
-            tag_resources_client = boto3.client('resourcegroupstaggingapi', region_name=region)
-            batches = [resource_list[i:i + 20] for i in range(0, len(resource_list), 20)]
-            
-            for batch in batches:
-                tag_response = tag_resources_client.untag_resources(
-                    ResourceARNList=batch,
-                    TagKeys=['Lab']
-                )
-                if tag_response['FailedResourcesMap']:
-                   Not_Tagged_List.extend(list(tag_response['FailedResourcesMap'].keys()))
-        else:
-            tag_resources_client = boto3.client('resourcegroupstaggingapi', region_name="us-east-1")
-            batches = [resource_list[i:i + 20] for i in range(0, len(resource_list), 20)]
-            
-            for batch in batches:
-                tag_response = tag_resources_client.untag_resources(
-                    ResourceARNList=batch,
-                    TagKeys=['Lab']
-                )
-                if tag_response['FailedResourcesMap']:
-                   Not_Tagged_List.extend(list(tag_response['FailedResourcesMap'].keys()))
+    # --- EKS: CreateCluster ---
+    elif event_name == "CreateCluster":
+        cluster_name = detail.get("responseElements", {}).get("name")
+        if cluster_name:
+            resource_arns.append(f"arn:aws:eks:{region}:{account}:cluster/{cluster_name}")
 
+    # --- ECR: CreateRepository ---
+    elif event_name == "CreateRepository":
+        repo_name = detail.get("responseElements", {}).get("repositoryName")
+        if repo_name:
+            resource_arns.append(f"arn:aws:ecr:{region}:{account}:repository/{repo_name}")
 
-# Group resources by region
-resource_groups = {}
+    # --- Add more services here as needed ---
 
-for arn in unique_list:
-    if ':' in arn:
-        region = arn.split(':')[3]
-        if region not in resource_groups:
-            resource_groups[region] = []
-        resource_groups[region].append(arn)
-
-# Tag resources in batches by region
-tag_resources_by_region(resource_groups)
-
-
-print(len(Not_Tagged_List))
-print(Not_Tagged_List)
+    # Apply tagging if we found resources
+    if resource_arns:
+        try:
+            tagging_client.tag_resources(
+                ResourceARNList=resource_arns,
+                Tags={"CreatedBy": user_arn}
+            )
+            print(f"Tagged {resource_arns} with CreatedBy={user_arn}")
+        except Exception as e:
+            print(f"Tagging failed: {str(e)}")
+    else:
+        print(f"No supported resources found for {event_name}")
